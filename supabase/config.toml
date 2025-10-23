@@ -1,0 +1,13 @@
+project_id = "gwfagduxqkuafspawjra"
+
+[functions.hello]
+verify_jwt = false
+
+[functions.analyze-webinar-pdf]
+verify_jwt = false
+
+[functions.send-campaign-email]
+verify_jwt = false
+
+[functions.send-webinar-emails]
+verify_jwt = false
