@@ -873,6 +873,7 @@ const sendTodayEmails = async (campaign: Campaign) => {
     const { error } = await supabase.from("campaigns").delete().eq("id", id);
     toast({ title: "Éxito", description: "Campaña eliminada" });
     fetchCampaigns();
+    setIsDialogOpen(false);
   };
 // Manejar cambio de rol en formulario masivo
 const handleBulkRoleChange = (role: string) => {
@@ -1017,27 +1018,320 @@ const resetBulkForm = () => {
   <div className="flex justify-between items-center mb-4">
     <h2 className="text-xl font-semibold">Campañas</h2>
     <div className="flex gap-2 items-center">
-      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogTrigger asChild>
-          <Button onClick={resetForm}>
-            <Plus className="mr-2 h-4 w-4" />
-            Nueva Campaña Individual
-          </Button>
-        </DialogTrigger>
-        {/* ... resto del Dialog */}
-      </Dialog>
-      
-      <Dialog open={isBulkDialogOpen} onOpenChange={setIsBulkDialogOpen}>
-        <DialogTrigger asChild>
-          <Button onClick={resetBulkForm} variant="outline">
-            <Plus className="mr-2 h-4 w-4" />
-            Nueva Campaña Masiva
-          </Button>
-        </DialogTrigger>
-        {/* ... resto del Dialog */}
-      </Dialog>
-    </div>
+    <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+      <DialogTrigger asChild>
+        <Button onClick={resetForm}><Plus className="mr-2 h-4 w-4" />Nueva Campaña Individual</Button>
+      </DialogTrigger>
+      <DialogContent className="max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>{editingCampaign ? "Editar Campaña" : "Nueva Campaña Individual"}</DialogTitle>
+        </DialogHeader>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <Label>Organización</Label>
+            <Select value={formData.organization} onValueChange={handleOrganizationChange}>
+              <SelectTrigger>
+                <SelectValue placeholder="Seleccionar" />
+              </SelectTrigger>
+              <SelectContent>
+                {[...new Set(contacts.map(c => c.organization))].map((org) => (
+                  <SelectItem key={org} value={org}>{org}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Label>Contacto</Label>
+            <Select 
+              value={formData.contact_id} 
+              onValueChange={handleContactChange}
+              disabled={!formData.organization}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder={formData.organization ? "Seleccionar" : "Primero selecciona una organización"} />
+              </SelectTrigger>
+              <SelectContent>
+                {contacts
+                  .filter(c => c.organization === formData.organization)
+                  .map((c) => (
+                    <SelectItem key={c.id} value={c.id}>
+                      {c.first_name} {c.last_name} ({c.title})
+                    </SelectItem>
+                  ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Label>Plantilla</Label>
+            <Select value={formData.template_id} onValueChange={(v) => setFormData({ ...formData, template_id: v })}>
+              <SelectTrigger>
+                <SelectValue placeholder="Seleccionar" />
+              </SelectTrigger>
+              <SelectContent>
+                {filteredTemplates.map((t) => (
+                  <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          {/* Fechas de envío */}
+          <div className="border-t pt-4">
+            <Label className="text-base font-semibold">Fechas de Envío</Label>
+            <p className="text-xs text-muted-foreground mb-3">
+              Al cambiar una fecha, las siguientes se recalcularán automáticamente (+3 días)
+            </p>
+
+            <div className="space-y-4">
+              <div className="flex gap-4">
+                <div className="flex-1">
+                  <Label>Fecha Email 1</Label>
+                  <Input
+                    type="date"
+                    value={formData.email_1_date || ''}
+                    onChange={(e) => handleDateChange(1, e.target.value)}
+                  />
+                </div>
+                <div className="flex-1">
+                  <Label>Fecha Email 2</Label>
+                  <Input
+                    type="date"
+                    value={formData.email_2_date || ''}
+                    onChange={(e) => handleDateChange(2, e.target.value)}
+                  />
+                </div>
+              </div>
+
+              <div className="flex gap-4">
+                <div className="flex-1">
+                  <Label>Fecha Email 3</Label>
+                  <Input
+                    type="date"
+                    value={formData.email_3_date || ''}
+                    onChange={(e) => handleDateChange(3, e.target.value)}
+                  />
+                </div>
+                <div className="flex-1">
+                  <Label>Fecha Email 4</Label>
+                  <Input
+                    type="date"
+                    value={formData.email_4_date || ''}
+                    onChange={(e) => handleDateChange(4, e.target.value)}
+                  />
+                </div>
+              </div>
+
+              <div className="w-1/2">
+                <Label>Fecha Email 5</Label>
+                <Input
+                  type="date"
+                  value={formData.email_5_date || ''}
+                  onChange={(e) => handleDateChange(5, e.target.value)}
+                />
+              </div>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <Checkbox checked={formData.start_campaign} onCheckedChange={(v) => setFormData({ ...formData, start_campaign: v as boolean })} />
+            <Label>Iniciar automáticamente la campaña</Label>
+          </div>
+          <div className="flex justify-between items-center">
+            {editingCampaign && (
+              <Button 
+                type="button" 
+                variant="destructive" 
+                onClick={() => handleDelete(editingCampaign.id)}
+              >
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            )}
+            {!editingCampaign && <div></div>}
+            <div className="flex gap-2">
+              <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>Cancelar</Button>
+              <Button type="submit">{editingCampaign ? "Actualizar" : "Crear"}</Button>
+            </div>
+          </div>
+        </form>
+      </DialogContent>
+    </Dialog>
+    
+    {/* Dialog para campañas masivas */}
+    <Dialog open={isBulkDialogOpen} onOpenChange={setIsBulkDialogOpen}>
+      <DialogTrigger asChild>
+        <Button onClick={resetBulkForm} variant="secondary">
+          <Plus className="mr-2 h-4 w-4" />
+          Nueva Campaña Masiva
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Crear Campaña Masiva</DialogTitle>
+        </DialogHeader>
+        <form onSubmit={handleBulkSubmit} className="space-y-4">
+          {/* Rol de campaña */}
+          <div>
+            <Label>Rol de Campaña</Label>
+            <Select value={bulkFormData.gartner_role} onValueChange={handleBulkRoleChange}>
+              <SelectTrigger>
+                <SelectValue placeholder="Seleccionar rol" />
+              </SelectTrigger>
+              <SelectContent>
+                {Array.from(new Set(templates.map(t => t.gartner_role))).map((role) => (
+                  <SelectItem key={role} value={role}>{role}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Plantilla */}
+          <div>
+            <Label>Plantilla</Label>
+            <Select 
+              value={bulkFormData.template_id} 
+              onValueChange={(v) => setBulkFormData({ ...bulkFormData, template_id: v })}
+              disabled={!bulkFormData.gartner_role}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Seleccionar plantilla" />
+              </SelectTrigger>
+              <SelectContent>
+                {bulkFilteredTemplates.map((t) => (
+                  <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Selección de contactos */}
+          <div>
+            <div className="flex justify-between items-center mb-2">
+              <Label>Contactos ({bulkFormData.selected_contacts.length} seleccionados)</Label>
+              <div className="flex gap-2">
+                <Button 
+                  type="button" 
+                  size="sm" 
+                  variant="outline"
+                  onClick={selectAllContacts}
+                  disabled={!bulkFormData.gartner_role}
+                >
+                  Seleccionar todos
+                </Button>
+                <Button 
+                  type="button" 
+                  size="sm" 
+                  variant="outline"
+                  onClick={deselectAllContacts}
+                  disabled={bulkFormData.selected_contacts.length === 0}
+                >
+                  Deseleccionar todos
+                </Button>
+              </div>
+            </div>
+            
+            <div className="border rounded-md p-4 max-h-60 overflow-y-auto space-y-2">
+              {!bulkFormData.gartner_role ? (
+                <p className="text-sm text-muted-foreground text-center py-4">
+                  Selecciona un rol para ver los contactos disponibles
+                </p>
+              ) : bulkFilteredContacts.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-4">
+                  No hay contactos disponibles para este rol
+                </p>
+              ) : (
+                bulkFilteredContacts.map((contact) => (
+                  <div key={contact.id} className="flex items-center space-x-2">
+                    <Checkbox
+                      checked={bulkFormData.selected_contacts.includes(contact.id)}
+                      onCheckedChange={() => toggleContactSelection(contact.id)}
+                    />
+                    <label className="text-sm cursor-pointer flex-1" onClick={() => toggleContactSelection(contact.id)}>
+                      {contact.organization} - {contact.first_name} {contact.last_name} ({contact.title}) [Tier {contact.tier}]
+                    </label>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+
+          {/* Fechas de envío */}
+          <div className="border-t pt-4">
+            <Label className="text-base font-semibold">Fechas de Envío</Label>
+            <p className="text-xs text-muted-foreground mb-3">
+              Al cambiar una fecha, las siguientes se recalcularán automáticamente (+3 días)
+            </p>
+
+            <div className="space-y-4">
+              <div className="flex gap-4">
+                <div className="flex-1">
+                  <Label>Fecha Email 1</Label>
+                  <Input
+                    type="date"
+                    value={bulkFormData.email_1_date}
+                    onChange={(e) => handleBulkDateChange(1, e.target.value)}
+                  />
+                </div>
+                <div className="flex-1">
+                  <Label>Fecha Email 2</Label>
+                  <Input
+                    type="date"
+                    value={bulkFormData.email_2_date}
+                    onChange={(e) => handleBulkDateChange(2, e.target.value)}
+                  />
+                </div>
+              </div>
+
+              <div className="flex gap-4">
+                <div className="flex-1">
+                  <Label>Fecha Email 3</Label>
+                  <Input
+                    type="date"
+                    value={bulkFormData.email_3_date}
+                    onChange={(e) => handleBulkDateChange(3, e.target.value)}
+                  />
+                </div>
+                <div className="flex-1">
+                  <Label>Fecha Email 4</Label>
+                  <Input
+                    type="date"
+                    value={bulkFormData.email_4_date}
+                    onChange={(e) => handleBulkDateChange(4, e.target.value)}
+                  />
+                </div>
+              </div>
+
+              <div className="w-1/2">
+                <Label>Fecha Email 5</Label>
+                <Input
+                  type="date"
+                  value={bulkFormData.email_5_date}
+                  onChange={(e) => handleBulkDateChange(5, e.target.value)}
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Iniciar campaña */}
+          <div className="flex items-center gap-2">
+            <Checkbox
+              checked={bulkFormData.start_campaign}
+              onCheckedChange={(v) => setBulkFormData({ ...bulkFormData, start_campaign: v as boolean })}
+            />
+            <Label>Iniciar automáticamente las campañas</Label>
+          </div>
+
+          {/* Botones */}
+          <div className="flex justify-end gap-2 pt-4 border-t">
+            <Button type="button" variant="outline" onClick={() => setIsBulkDialogOpen(false)}>
+              Cancelar
+            </Button>
+            <Button type="submit">
+              Crear {bulkFormData.selected_contacts.length} Campaña{bulkFormData.selected_contacts.length !== 1 ? 's' : ''}
+            </Button>
+          </div>
+        </form>
+      </DialogContent>
+    </Dialog>
   </div>
+</div>
 
   {/* Sección de verificación de emails - NUEVO */}
   <div className="mb-4 p-3 bg-muted/50 rounded-lg border border-border">
@@ -1051,12 +1345,26 @@ const resetBulkForm = () => {
             
             const checkDate = new Date(parseInt(lastCheck));
             const now = new Date();
-            const diffHours = Math.floor((now.getTime() - checkDate.getTime()) / (1000 * 60 * 60));
+            const diffMinutes = Math.floor((now.getTime() - checkDate.getTime()) / (1000 * 60));
             
-            if (diffHours < 1) return 'Última verificación: hace menos de 1 hora';
-            if (diffHours < 24) return `Última verificación: hace ${diffHours} horas`;
+            // Mostrar hora específica
+            const timeString = checkDate.toLocaleTimeString('es-ES', { 
+              hour: '2-digit', 
+              minute: '2-digit' 
+            });
+            
+            if (diffMinutes < 1) return `Última verificación: hace menos de 1 minuto (${timeString})`;
+            if (diffMinutes < 60) return `Última verificación: hace ${diffMinutes} minuto${diffMinutes > 1 ? 's' : ''} (${timeString})`;
+            
+            const diffHours = Math.floor(diffMinutes / 60);
+            if (diffHours < 24) return `Última verificación: hace ${diffHours} hora${diffHours > 1 ? 's' : ''} (${timeString})`;
+            
             const diffDays = Math.floor(diffHours / 24);
-            return `Última verificación: hace ${diffDays} día${diffDays > 1 ? 's' : ''}`;
+            const dateString = checkDate.toLocaleDateString('es-ES', { 
+              day: '2-digit', 
+              month: '2-digit' 
+            });
+            return `Última verificación: hace ${diffDays} día${diffDays > 1 ? 's' : ''} (${dateString} ${timeString})`;
           })()}
         </p>
       </div>
@@ -1065,23 +1373,11 @@ const resetBulkForm = () => {
         size="sm"
         onClick={() => {
           checkAllReplies();
-          localStorage.setItem('last_email_check', new Date().getTime().toString());
+          localStorage.setItem('last_email_check', Date.now().toString());
         }}
         disabled={checkingReplies}
       >
-        {checkingReplies ? (
-          <>
-            <span className="animate-spin mr-2">⟳</span>
-            Verificando...
-          </>
-        ) : (
-          <>
-            <svg className="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-            </svg>
-            Verificar Ahora
-          </>
-        )}
+        {checkingReplies ? 'Verificando...' : 'Verificar ahora'}
       </Button>
     </div>
   </div>
