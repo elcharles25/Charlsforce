@@ -1051,21 +1051,31 @@ const resetBulkForm = () => {
                 <SelectValue placeholder={formData.organization ? "Seleccionar" : "Primero selecciona una organización"} />
               </SelectTrigger>
               <SelectContent>
-                {contacts
-                  .filter(c => c.organization === formData.organization)
-                  .map((c) => (
-                    <SelectItem key={c.id} value={c.id}>
-                      {c.first_name} {c.last_name} ({c.title})
-                    </SelectItem>
-                  ))}
+                {filteredContacts.map((c) => (
+                  <SelectItem key={c.id} value={c.id}>
+                    {c.first_name} {c.last_name} ({c.title})
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
           <div>
             <Label>Plantilla</Label>
-            <Select value={formData.template_id} onValueChange={(v) => setFormData({ ...formData, template_id: v })}>
+            <Select 
+              value={formData.template_id} 
+              onValueChange={(v) => setFormData({ ...formData, template_id: v })}
+              disabled={!formData.contact_id || filteredTemplates.length === 0}
+            >
               <SelectTrigger>
-                <SelectValue placeholder="Seleccionar" />
+                <SelectValue placeholder={
+                  !formData.organization 
+                    ? "Primero selecciona una organización" 
+                    : !formData.contact_id 
+                    ? "Primero selecciona un contacto" 
+                    : filteredTemplates.length === 0
+                    ? "No hay plantillas disponibles"
+                    : "Seleccionar"
+                } />
               </SelectTrigger>
               <SelectContent>
                 {filteredTemplates.map((t) => (
